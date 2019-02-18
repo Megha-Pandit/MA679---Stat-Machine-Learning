@@ -1,0 +1,200 @@
+---
+title: "Resampling and Regularization Homework"
+author: "Megha Pandit"
+date: "February 14, 2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(boot)
+library(base)
+library(leaps)
+```
+
+5.8. We will now perform cross-validation on a simulated data set.
+(a) Generate a simulated data set as follows:
+
+```{r}
+set.seed (1)
+x <- rnorm (100)
+y <- x-2* x^2+ rnorm (100)
+```
+
+In this data set, what is n and what is p? Write out the model used to generate the data in equation form.
+(b) Create a scatterplot of X against Y . Comment on what you find.
+
+_*The model used to generate the data is*_ $y = (x - 2)x^2 + \epsilon$
+_*In this data set, n = 100 and p = 2.*_
+
+```{r}
+plot(x,y)
+```
+_*From the scatterplot, we see a clear non-linear relationship between x and y. The plot looks more like an inverted parabola implying a quadratic relationship between x and y. And, the range of x seems to be approximately from -2 to 2.*_
+
+(c) Set a random seed, and then compute the LOOCV errors that result from fitting the following four models using least squares:
+i. Y = $\beta_0 + \beta_1X + \epsilon$
+ii. Y = $\beta_0 + \beta_1X + \beta_2X^2 + \epsilon$
+iii. Y = $\beta_0 + \beta_1X + \beta_2X^2 + \beta_3X^3 + \epsilon$
+iv. Y = $\beta_0 + \beta_1X + \beta_2X^2 + \beta_3X^3 + \beta_4X^4 + \epsilon$.
+Note you may find it helpful to use the data.frame() function to create a single data set containing both X and Y .
+
+```{r}
+# i)
+set.seed(1)
+df <- data.frame(x,y)
+fit1 <- glm(y ~ x, data = df)
+print(paste0("LOOCV error for i): ", cv.glm(df, fit1)$delta[1]))
+
+# ii)
+fit2 <- glm(y ~ poly(x,2), data = df)
+print(paste0("LOOCV error for ii): ", cv.glm(df, fit2)$delta[1]))
+
+# iii)
+fit3 <- glm(y ~ poly(x,3), data = df)
+print(paste0("LOOCV error for iii): ", cv.glm(df, fit3)$delta[1]))
+
+# iv)
+fit4 <- glm(y ~ poly(x,4), data = df)
+print(paste0("LOOCV error for iv): ", cv.glm(df, fit4)$delta[1]))
+```
+
+(d) Repeat (c) using another random seed, and report your results. Are your results the same as what you got in (c)? Why?
+
+```{r}
+set.seed(99)
+df <- data.frame(x,y)
+
+# i)
+fit1 <- glm(y ~ x, data = df)
+print(paste0("LOOCV error for i): ", cv.glm(df, fit1)$delta[1]))
+
+# ii)
+fit2 <- glm(y ~ poly(x,2), data = df)
+print(paste0("LOOCV error for ii): ", cv.glm(df, fit2)$delta[1]))
+
+# iii)
+fit3 <- glm(y ~ poly(x,3), data = df)
+print(paste0("LOOCV error for iii): ", cv.glm(df, fit3)$delta[1]))
+
+# iv)
+fit4 <- glm(y ~ poly(x,4), data = df)
+print(paste0("LOOCV error for iv): ", cv.glm(df, fit4)$delta[1]))
+```
+_*The results in (c) and (d) are the same because LOOCV trains the model on all the observations except one. Therefore, each time, the model is trained with the same set of observations for each cross validation set.*_
+
+(e) Which of the models in (c) had the smallest LOOCV error? Is this what you expected? Explain your answer.
+
+_*Model ii) has the least LOOCV error. This is expected as we saw in (b) that x and y share a quadratic relationship.*_
+
+
+(f) Comment on the statistical significance of the coefficient estimates that results from fitting each of the models in (c) using least squares. Do these results agree with the conclusions drawn based on the cross-validation results?
+
+```{r}
+for (i in 1:4) {
+  print(summary(glm(y ~ poly(x,i), data = df)))
+}
+```
+_*The results from the least squares model for the four models above are consistent with the LOOCV results. In model i) and ii), all the coefficients are statistically significant. But, in models iii) and iv), the coefficients of*_ $X^3 and X^4$ _*are not statistically significant, implying that y is second degree polynomial dependent on x.*_
+
+$~$
+
+6.2. For parts (a) through (c), indicate which of i. through iv. is correct. Justify your answer.
+(a) The lasso, relative to least squares, is: 
+i. More flexible and hence will give improved prediction accuracy when its increase in bias is less than its decrease in variance.
+ii. More flexible and hence will give improved prediction accuracy when its increase in variance is less than its decrease in bias.
+iii. Less flexible and hence will give improved prediction accuracy when its increase in bias is less than its decrease in variance.
+iv. Less flexible and hence will give improved prediction accuracy when its increase in variance is less than its decrease in bias.
+
+__**The lasso is: iii) less flexible and hence will give improved prediction accuracy when its increase in bias is less than its decrease in variance. This is because the lasso restricts the number of predictors by shrinking some of them to be exactly zero. This reduced flexibility results in increase in bias buta decrease in variance. Therefore, when the increase in bias is less than the decrease in variance, lasso will have better prediction accuarcy relative to least squares.**__
+
+(b) Repeat (a) for ridge regression relative to least squares.
+
+__**Similar to the lasso, ridge regression also is: iii) less flexible and hence will give improved prediction accuracy when its increase in bias is less than its decrease in variance.**__
+
+(c) Repeat (a) for non-linear methods relative to least squares.
+
+__**Since non-linear methods are more flexible relative to least squares, ii) is the correct answer here. They are more flexible and hence will give better prediction accuracy when the increase in variance is less than the decrease in bias.**__
+
+$~$
+
+6.10. We have seen that as the number of features used in a model increases, the training error will necessarily decrease, but the test error may not. We will now explore this in a simulated data set.
+(a) Generate a data set with p = 20 features, n = 1,000 observations, and an associated quantitative response vector generated according to the model Y = $X\beta + \epsilon$, where $\beta$ has some elements that are exactly equal to zero.
+
+```{r}
+set.seed(9)
+x <- matrix(rnorm(1000*20), 1000, 20)
+b <- matrix(rnorm(20), 20, 1)
+b[2] <- 0
+b[5] <- 0
+b[9] <- 0
+b[14] <- 0
+b[18] <- 0
+
+err <- rnorm(1000)
+
+y <- x%*%b + err 
+```
+
+(b) Split your data set into a training set containing 100 observations and a test set containing 900 observations.
+
+```{r}
+Data <- data.frame(x,y)
+train <- Data[1:100,]
+test <- Data[101:1000,]
+```
+
+(c) Perform best subset selection on the training set, and plot the training set MSE associated with the best model of each size.
+
+```{r}
+n <- 100
+subset1 <- regsubsets(y ~., train, nvmax = 20)
+plot((1/n)*summary(subset1)$rss, xlab = "Number of Variables", ylab = "Training MSE", type = "b", pch = 19)
+axis(1, at = seq(1, 20, 1))
+```
+
+(d) Plot the test set MSE associated with the best model of each size.
+
+```{r}
+test.mat <- model.matrix(y ~., test, nvmax = 20)
+errs <- rep(NA, 20)
+for (i in 1:20) {
+  coeff <- coef(subset1, id = i)
+  pred <- test.mat[, names(coeff)] %*%coeff
+  errs[i] <- mean((pred - test[,21])^2) 
+}
+plot(errs, xlab = "Number of Variables", ylab = "Test MSE", type = "b", pch = 19)
+axis(1, at = seq(1, 20, 1))
+```
+
+(e) For which model size does the test set MSE take on its minimum value? Comment on your results. If it takes on its minimum value for a model containing only an intercept or a model containing all of the features, then play around with the way that you are generating the data in (a) until you come up with a scenario in which the test set MSE is minimized for an intermediate model size.
+
+```{r}
+which.min(errs)
+```
+_*The model with 17 variables has the smallest MSE.*_
+
+
+(f) How does the model at which the test set MSE is minimized compare to the true model used to generate the data? Comment on the coefficient values.
+
+```{r}
+coef(subset1, which.min(errs))
+```
+_*The best model caught only three out of the five zero coefficients.*_
+
+
+(g) Create a plot displaying $\sqrt\Sigma_{j = 1}^p(\beta_j - \hat\beta_j^r)^2$ for a range of values of r, where $\hat\beta_j^r$ is the jth coefficient estimate for the best model containing r coefficients. Comment on what you observe. How does this compare to the test MSE plot from (d)?
+
+```{r}
+errors <- rep(NA, 20)
+x_colname <- colnames(x, do.NULL = FALSE, prefix = "X")
+for (i in 1:20) {
+  coeff <- coef(subset1, id = i)
+  errors[i] <- sqrt(sum((b[x_colname %in% names(coeff)] - coeff[names(coeff) %in% x_colname])^2) + sum(b[!(x_colname %in% names(coeff))])^2) 
+}
+plot(errors, xlab = "Number of variables", ylab = "MSE for estimated and true coefficients", type = "b", pch = 19)
+axis(1, at = seq(1, 20, 1))
+
+```
+
+_*From the above plot, it is seen that the model with 6 variables has the least error. This implies that the model that gives coefficient estimates close to the true parameter values need not necessarily be the model that has the least MSE, i.e., it is not necessarily the best model.*_
