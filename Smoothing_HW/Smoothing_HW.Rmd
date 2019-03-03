@@ -1,0 +1,313 @@
+---
+title: "Smoothing HW"
+author: "Megha Pandit"
+date: "February 26, 2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(boot)
+library(splines)
+library(leaps)
+library(ISLR)
+library(mgcv)
+```
+
+3. Suppose we fit a curve with basis functions b1(X) = X, b2(X) = (X - 1)^2I(X >= 1). (Note that I(X >= 1) equals 1 for X >= 1 and 0 otherwise.) We fit the linear regression model Y = $\beta_0 + \beta_1b_1(X) + \beta_2b_2(X) + \epsilon$, and obtain coefficient estimates $\hat\beta_0 = 1$, $\hat\beta_1 = 1$, $\hat\beta_2 = -2$. Sketch the estimated curve between X = -2 and X = 2. Note the intercepts, slopes, and other relevant information.
+
+```{r}
+X <- seq(-2,2,0.1)
+Y = 1 + 1*X - 2*((X - 1)^2)*I(X >= 1)
+plot(X, Y, type = "l")
+```
+
+9. This question uses the variables dis (the weighted mean of distances to five Boston employment centers) and nox (nitrogen oxides concentration in parts per 10 million) from the Boston data. We will treat dis as the predictor and nox as the response.
+(a) Use the poly() function to fit a cubic polynomial regression to predict nox using dis. Report the regression output, and plot the resulting data and polynomial fits.
+
+```{r, fig.width=3, fig.height=3}
+library(MASS)
+data("Boston")
+
+fit1 <- glm(nox ~ poly(dis, 3), data = Boston)
+summary(fit1)
+
+plot(fit1)
+```
+
+```{r}
+
+lims_dis <- range(Boston$dis)
+grid_dis <- seq(lims_dis[1], lims_dis[2])
+pred1 <- predict(fit1, list(dis = grid_dis), se = TRUE)
+se_lines <- cbind(pred1$fit + 2*pred1$se.fit, pred1$fit - 2*pred1$se.fit)
+plot(Boston$dis, Boston$nox, xlab = "Weighted Mean of Distances", ylab = "Nitrogen Oxide Concentration", col = "dodgerblue4")
+lines(grid_dis, pred1$fit, col = "orange", lwd = 2)
+matlines(grid_dis, se_lines, lwd = 2, col = "red", lty = 3)
+```
+
+$~$
+
+(b) Plot the polynomial fits for a range of different polynomial degrees (say, from 1 to 10), and report the associated residual sum of squares.
+
+```{r}
+set.seed(1)
+rss <- rep(NA, 10)
+for (i in 1:10){
+  fit <- glm(nox ~ poly(dis, i), data = Boston)
+  rss[i] <- sum(fit$residuals^2)
+}
+
+plot(1:10, rss, xlab = "Polynomial Degree", ylab = "RSS", type = "l", col = "forestgreen", lwd = 2)
+points(which.min(rss), rss[which.min(rss)], col='red',pch=20,cex=2)
+```
+
+__**The minimum RSS is for a polynomial degree of 10.**__
+
+$~$
+
+(c) Perform cross-validation or another approach to select the optimal degree for the polynomial, and explain your results.
+
+```{r}
+err <- rep(NA, 10)
+for (i in 1:10) {
+  fit <- glm(nox ~ poly(dis, i), data = Boston)
+  err[i] <- cv.glm(Boston, fit, K = 10)$delta[1]
+}
+plot(1:10, err, xlab = "Polynomial Degree", ylab = "MSE", type = "l", col = "deeppink3", lwd = 2)
+points(which.min(err), err[which.min(err)], col='red',pch=20,cex=2)
+```
+
+__**MSE is the smallest for the polynomial with degree 3.**__
+
+$~$
+
+(d) Use the bs() function to fit a regression spline to predict nox using dis. Report the output for the fit using four degrees of freedom. How did you choose the knots? Plot the resulting fit.
+
+```{r}
+range(Boston$dis)
+summary(Boston$dis)
+
+fit2 <- lm(nox ~ bs(dis, df = 4), data = Boston)
+summary(fit2)
+
+attr(bs(Boston$dis, df = 4), "knots")
+
+x <- seq(min(Boston$dis), max(Boston$dis))
+y <- predict(fit2, data.frame(dis = x))
+plot(Boston$dis, Boston$nox, col = "deepskyblue")
+lines(x, y, col = "mediumorchid3", lwd = 2)
+```
+__**In this case, since we put it the degrees of freedom, R chose the knot at 3.207, which corresponds to the 50th percentile of the weighted mean of distances. This also coincides with the fact that the knot is chosen at the median of the variable dis.**__
+
+$~$
+
+(e) Now fit a regression spline for a range of degrees of freedom, and plot the resulting fits and report the resulting RSS. Describe the results obtained.
+
+```{r}
+plot(Boston$dis, Boston$nox, xlab = "Weighted Mean of Distances", ylab = "Nitrogen Oxide Concentration", col = "gray40")
+clrs <- rainbow(16)
+legend(x = "topright", legend = 3:16, text.col = clrs[3:16], text.width = 0.2, bty = "n", horiz = T)
+x <- seq(min(Boston$dis), max(Boston$dis), length.out = 100)
+rss_df <- c()
+for (i in 3:16) {
+  fit <- lm(nox ~ bs(dis, df = i), data = Boston)
+  pred <- predict(fit, data.frame(dis = x))
+  lines(x, pred, col = clrs[i], lwd = 1.85)
+  rss_df[i] <- sum(fit$residuals^2)
+}
+
+plot(1:16, rss_df, xlab = "Degrees of Freedom", ylab = "RSS", type = "l", col = "deeppink1", lwd = 2)
+points(which.min(rss_df), rss_df[which.min(rss_df)], col='orange',pch=20,cex=2)
+```
+__**The smallest RSS is for 14 degrees of freedom.**__
+
+
+(f) Perform cross-validation or another approach in order to select the best degrees of freedom for a regression spline on this data. Describe your results.
+
+```{r, warning=FALSE, message=FALSE}
+set.seed(9)
+cv <- rep(NA, 16)
+for (i in 3:16) {
+  fit <- glm(nox ~ bs(dis, df = i), data = Boston)
+  cv[i] <- cv.glm(Boston, fit, K = 10)$delta[1]
+}
+
+plot(3:16, cv[3:16], xlab = "Degrees of Freedom", ylab = "Test MSE", type = "l")
+points(which.min(cv), cv[which.min(cv)], col = "red", pch = 20, cex = 2)
+```
+
+__**Cross-validation shows the smallest MSE for 10 degrees of freedom.**__
+
+$~$
+
+10. This question relates to the College data set.
+(a) Split the data into a training set and a test set. Using out-of-state tuition as the response and the other variables as the predictors, perform forward stepwise selection on the training set in order to identify a satisfactory model that uses just a subset of the predictors.
+
+```{r}
+data("College")
+set.seed(1)
+train_id <- sample(1:nrow(College), 500)
+train <- College[train_id,] 
+test <- College[-train_id,]
+
+fit_fwd <- regsubsets(Outstate ~ ., train, nvmax = ncol(College)-1, method = "forward")
+fwd_summary <- summary(fit_fwd)
+
+test_mat <- model.matrix(Outstate ~ ., test, nvmax = ncol(College)-1)
+
+err_fwd <- rep(NA, ncol(College)-1)
+for (i in 1:(ncol(College)-1)) {
+  coeff <- coef(fit_fwd, id = i)
+  pred_fwd <- test_mat[, names(coeff)] %*% coeff
+  err_fwd[i] <- mean((test$Outstate - pred_fwd)^2)
+}
+par(mfrow = c(2,2))
+plot(err_fwd, type = "b", main = "Test MSE", xlab = "Number of Predictors")
+min_mse <- which.min(err_fwd)
+points(min_mse, err_fwd[min_mse], col = "red", pch = 4, lwd = 5)
+plot(fwd_summary$adjr2, type = "b", main = "Adjusted R^2", xlab = "Number of Predictors")
+max_adjr <- which.max(fwd_summary$adjr2)
+points(max_adjr, fwd_summary$adjr2[max_adjr], col = "red", pch = 4, lwd = 5)
+plot(fwd_summary$cp, type = "b", main = "Cp", xlab = "Number of Predictors")
+min_cp <- which.min(fwd_summary$cp)
+points(min_cp, fwd_summary$cp[min_cp], col = "red", pch = 4, lwd = 5)
+plot(fwd_summary$bic, type = "b", main = "BIC", xlab = "Number of Predictors")
+min_bic <- which.min(fwd_summary$bic)
+points(min_bic, fwd_summary$bic[min_bic], col = "red", pch = 4, lwd = 5)
+
+```
+__**The model metrics do not seem to improve much after 10 predictors.**__
+
+```{r}
+coef(fit_fwd, 10)
+```
+__**However, the coefficient for Private has an astronomical value compared to the other coefficients.**__
+
+$~$
+
+(b) Fit a GAM on the training data, using out-of-state tuition as the response and the features selected in the previous step as the predictors. Plot the results, and explain your findings.
+
+```{r, message=FALSE}
+library(gam)
+gam1 <- gam(Outstate ~ Private + s(Accept) + s(F.Undergrad) + s(Room.Board) + s(Personal) + s(Terminal) + s(S.F.Ratio) + s(perc.alumni) + s(Expend) + s(Grad.Rate), data = train)
+
+par(mfrow = c(1,3))
+plot(gam1, se = TRUE, col = "blue")
+```
+__**The out-of-state tuition seems non-monotonic and has a non-linear relationship with almost all of the predictors included in the model. Most of them have large standard errors for higher values, except for Grad.Rate which has large standard error for lower values.**__
+
+$~$
+
+(c) Evaluate the model obtained on the test set, and explain the results obtained.
+
+```{r}
+pred_gam <- predict(gam1, test)
+err_gam <- mean((test$Outstate - pred_gam)^2)
+err_gam
+
+tss_gam <- mean(((test$Outstate) - mean(test$Outstate))^2)
+rss_gam <- 1 - err_gam/tss_gam
+rss_gam
+```
+__**The R squared for the GAM model with 10 predictors is 0.8031 or 80.31% of the variation in the model is explained by the predictors chosen. This seems to be quite a good model.**__
+
+$~$
+
+(d) For which variables, if any, is there evidence of a non-linear relationship with the response?
+
+```{r}
+summary(gam1)
+```
+__**perc.alumni and Grad.Rate do not have significant non-parametric effects. They could probably be converted to linear parametric terms. Accept and Expend have strong non-linear relationships with out-of-state tuition, the response variable.**__
+
+$~$
+
+11. In Section 7.7, it was mentioned that GAMs are generally fit using a backfitting approach. The idea behind backfitting is actually quite simple. We will now explore backfitting in the context of multiple linear regression. Suppose that we would like to perform multiple linear regression, but we do not have software to do so. Instead, we only have software to perform simple linear regression. Therefore, we take the following iterative approach: we repeatedly hold all but one coefficient estimate fixed at its current value, and update only that coefficient estimate using a simple linear regression. The process is continued until convergence-that is, until the coefficient estimates stop changing. We now try this out on a toy example.
+
+(a) Generate a response Y and two predictors X1 and X2, with n = 100.
+
+```{r}
+set.seed(99)
+n <- 100
+X1 <- rnorm(100)
+X2 <- rnorm(100)
+eps <- rnorm(1:100, sd = 1)
+
+b_0 <- 0.9
+b_1 <- -1.5
+b_2 <- 1
+Y = b_0 + b_1*X1 + b_2*X2 +eps
+
+plot(Y)
+```
+
+$~$
+
+(b) Initialize $\hat\beta_1$ to take on a value of your choice. It does not matter what value you choose.
+
+```{r}
+b_h1 <- 1
+```
+
+(c) Keeping $\hat\beta_1$ fixed, fit the model Y - $\hat\beta_1X_1 = \beta_0 + \beta_2X_2 + \epsilon$. You can do this as follows:
+
+```{r}
+a=Y-b_h1 *X1
+b_h2=lm(a~X2)$coef [2]
+```
+
+(d) Keeping $\hat\beta_2$ fixed, fit the model Y - $\hat\beta_2X_2 = \beta_0 + \beta_1X_1 + \epsilon$. You can do this as follows:
+
+```{r}
+a=Y-b_h2 *X2
+b_h1=lm(a~X1)$coef [2]
+```
+
+
+(e) Write a for loop to repeat (c) and (d) 1,000 times. Report the estimates of $\hat\beta_0$, $\hat\beta_1$, and $\hat\beta_2$ at each iteration of the for loop. Create a plot in which each of these values is displayed, with $\hat\beta_0$, $\hat\beta_1$, and $\hat\beta_2$ each shown in a different color.
+
+```{r}
+b_hat0 <- rep(0,1000)
+b_hat1 <- rep(0,1000)
+b_hat2 <- rep(0,1000)
+
+for (i in 1:1000) {
+  a <- Y - b_hat1[i]*X1
+  b_hat2[i] <- lm(a ~ X2)$coef[2]
+  a <- Y - b_hat2[i]*X2
+  b_hat1[i] <- lm(a ~ X1)$coef[2]
+  b_hat0[i] <- lm(a ~ X1)$coef[1]
+}
+
+plot(b_hat0, ylab = "Estimates", type = "l", col = "red", ylim = c(-2,2), xlim = c(0,100))
+lines(b_hat1, col = "blue")
+lines(b_hat2, col = "green")
+```
+
+$~$
+
+(f) Compare your answer in (e) to the results of simply performing multiple linear regression to predict Y using X1 and X2. Use the abline() function to overlay those multiple linear regression coefficient estimates on the plot obtained in (e).
+
+```{r}
+fit3 <- lm(Y ~ X1 + X2)
+
+plot(b_hat0, ylab = "Estimates", type = "l", col = "red", ylim = c(-2,2), xlim = c(0,100), lwd = 3)
+lines(b_hat1, col = "blue", lwd = 3)
+lines(b_hat2, col = "green", lwd = 3)
+abline(h = coef(fit3)[1], lty = "dashed", col = "brown", lwd = 3)
+abline(h = coef(fit3)[2], lty = "dashed", col = "black", lwd = 3)
+abline(h = coef(fit3)[3], lty = "dashed", col = "orange", lwd = 3)
+
+```
+
+$~$
+
+(g) On this data set, how many backfitting iterations were required in order to obtain a "good" approximation to the multiple regression coefficient estimates?
+
+```{r}
+b <- data.frame(b_hat0, b_hat1, b_hat2)
+head(b)
+```
+__**One iteration was enough to obtain a good approximation to the multiple regression coefficients.**__
+
