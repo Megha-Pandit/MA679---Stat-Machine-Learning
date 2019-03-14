@@ -41,8 +41,8 @@ $~$
 
 #Problem 2
 
-```{r}
-
+```{r, out.width= "85%"}
+include_graphics("C:/Users/GP/Desktop/MEGHA/SemII/MA679 - Appl Stat Learning/Homework/MA679---Stat-Machine-Learning/Tree_HW/Image.jpeg")
 ```
 
 
