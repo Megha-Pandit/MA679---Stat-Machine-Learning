@@ -1,0 +1,336 @@
+---
+title: "Unsupervised Learning Homework"
+author: "Megha Pandit"
+date: "March 23, 2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Problem 3
+#(a)
+
+```{r}
+x1 <- c(1,1,0,5,6,4)
+x2 <- c(4,3,4,1,2,0)
+df <- data.frame(x1,x2)
+plot(x1, x2)
+```
+
+#(b)
+
+```{r}
+set.seed(99)
+in_clusters <- sample(2, nrow(df), replace = TRUE)
+in_clusters
+plot(x1, x2, col = in_clusters, pch = 20, cex = 1.5)
+df1 <- data.frame(df, in_clusters)
+```
+
+#(c)
+__**From the plot in (b), we can calculate the centroids as follows:**__
+
+```{r}
+cent_1 <- c(mean(df1[df1$in_clusters == 1,1]), mean(df1[df1$in_clusters == 1,2]))
+cent_2 <- c(mean(df1[df1$in_clusters == 2,1]), mean(df1[df1$in_clusters == 2,2]))
+
+print(paste0("Centroid for cluster 1 is: ", "(", cent_1[1], ",", cent_1[2], ")"))
+print(paste0("Centroid for cluster 2 is: ", "(", cent_2[1], ",", cent_2[2], ")"))
+
+plot(x1, x2, col = in_clusters, pch = 20, cex = 1.5)
+points(cent_1[1], cent_1[2], pch = 8, cex = 2, col = 2)
+points(cent_2[1], cent_2[2], pch = 8, cex = 2, col = 3)
+
+```
+
+#(d)
+
+```{r}
+euc_dist <- function(v,z){
+  sqrt(sum((v-z)^2))
+}
+
+df1$updated_cluster <- c()
+
+for (i in 1:nrow(df1)) {
+  d1 <- euc_dist(c(df1[i,1],df1[i,2]), c(cent_1[1], cent_1[2]))
+  d2 <- euc_dist(c(df1[i,1],df1[i,2]), c(cent_2[1], cent_2[2]))
+  
+  if (d1 <= d2){
+    df1$updated_cluster[i] <- 1
+  }else {
+    df1$updated_cluster[i] <- 2
+  }
+}
+
+updated_centroid1 <- c(mean(df1[df1$updated_cluster == 1,1]), mean(df1[df1$updated_cluster == 1,2]))
+updated_centroid2 <- c(mean(df1[df1$updated_cluster == 2,1]), mean(df1[df1$updated_cluster == 2,2]))
+
+
+plot(x1, x2, col = df1$updated_cluster+1, pch = 20, cex = 1.5)
+points(updated_centroid1[1], updated_centroid1[2], pch = 8, cex = 2, col = 2)
+points(updated_centroid2[1], updated_centroid2[2], pch = 8, cex = 2, col = 3)
+```
+
+#(e)
+
+__**Assigning each observation to the centroid it is closest to, we do not find a change in the clusters. The algorithm stops with the above step.**__
+
+#(f)
+
+```{r}
+plot(x1, x2, col = df1$updated_cluster+1, pch = 20, cex = 1.5)
+```
+
+$~$
+$~$
+
+#Problem 5
+
+__**Left: The left side plot shows unscaled variables. In this case, the number of socks becomes more important than the number of computers. With K = 2, the K-Means clustering will result in two clusters separately for soks and computer purchases.**__
+__**Center: Since the variables are scaled, in this case, the piurchase of computers becomes as important as socks. Here, the K-Means clustering will produce two clusters - one of people who have purchased a computer and the other of people who haven't.**__
+__**Right: In this case, K-Means clustering will produce clusters of socks purchases and computer purchases separately because there is a huge difference in the price of socks and computers.**__
+
+$~$
+$~$
+
+#Problem 6
+#(a)
+
+__**The first principal component explains 10% of the variation means that 90% of the information in the original data is lost in projecting the tissue sample observations onto the first principal component. Or, 90% of the vraiation in the original data is not containe din the first principal component.**__
+
+#(b)
+
+__**Since each patient sample was run on either of the machines A and B, the machine used could be used as a feature in the PCA. We could check if there is an improvement in the PVE after adding the machine used as a feature.**__
+
+#(c)
+
+```{r}
+set.seed(9)
+control <- matrix(rnorm(50*1000), ncol = 50)
+treatment <- matrix(rnorm(50*1000), ncol = 50)
+
+x <- cbind(control, treatment)
+x[1,] <- seq(-18, 18 -.36, .36)
+pca <- prcomp(scale(x))
+summary(pca)$importance[,1]
+```
+
+__**The proportion of variance explained by the first principal component is 9.98%.**__
+__**Including the machine used (A and B) as a feature in the data, coding 0 for A and 10 for B, we get results as below: the PVE increased to 11.5%.**__
+
+```{r}
+X <- rbind(x, c(rep(0,50), rep(10, 50)))
+pca_out <- prcomp(scale(X))
+summary(pca_out)$importance[,1]
+```
+
+$~$
+$~$
+
+#Problem 8
+#(a)
+
+```{r}
+#The sdev approach to PVE
+data("USArrests")
+
+pca_usa <- prcomp(USArrests, scale. = TRUE)
+pca_usa$sdev
+
+#To get the variance 
+pca_var <- pca_usa$sdev^2
+pca_var
+
+#To get the PVE
+pve <- pca_var/sum(pca_var)
+pve
+```
+
+#(b)
+
+```{r}
+#The prcomp PVE approach
+usa_scaled <- scale(USArrests)
+
+loadings <- pca_usa$rotation
+sum_var <- sum(apply(as.matrix(usa_scaled)^2, 2, sum))
+apply((as.matrix(usa_scaled) %*% loadings)^2, 2, sum)/ sum_var
+```
+
+__**The PVE for each principal component form both the approaches is the same.**__
+
+$~$
+$~$
+
+#Problem 9
+#(a)
+
+```{r}
+set.seed(9)
+
+hc.complete <- hclust(dist(USArrests), method = "complete")
+plot(hc.complete)
+```
+
+#(b)
+
+```{r}
+hc_cut <- cutree(hc.complete, 3)
+clusters <- split(data.frame(names(hc_cut), hc_cut), as.factor(hc_cut))
+clusters
+```
+
+#(c)
+
+```{r}
+hc_scaled <- hclust(dist(scale(USArrests)), method = "complete")
+plot(hc_scaled)
+```
+
+#(d)
+
+```{r}
+hc_scaled_cut <- cutree(hc_scaled, 3)
+clusters_scaled <- split(data.frame(names(hc_scaled_cut), hc_scaled_cut), as.factor(hc_scaled_cut))
+clusters_scaled
+```
+
+```{r}
+table(hc_cut, hc_scaled_cut)
+```
+
+__**Scaling the variables affect the clusters obtained. It is better to scale the variables because they are measured on different units. For example, Assault is measured on a higher scale and will contribute most to the first principal component because of higher variance. Therefore, to obtain better results, all the variables need to be scaled prior to performing the clustering. **__
+
+$~$
+$~$
+
+#Problem 10
+#(a)
+
+```{r}
+set.seed(9)
+
+sim_data <- matrix(sapply(1:3, function(x) rnorm(20*50, mean = 0, sd = 0.001)), ncol = 50)
+class <- unlist(lapply(1:3, FUN = function(x) rep(x,20)))
+
+sim_data <- data.frame(sim_data)
+sim_data$true_labels <- c(rep(1,20), rep(2,20), rep(3,20))
+
+```
+
+#(b)
+
+```{r}
+sim_pca <- prcomp(sim_data, scale. = TRUE, center = TRUE)
+plot(sim_pca$x[,1:2], col = class, xlab = "Z1", ylab = "Z2", pch = 20)
+```
+
+#(c)
+
+```{r}
+set.seed(9)
+
+sim_kmeans <- kmeans(sim_data, 3)
+table(sim_data$true_labels, sim_kmeans$cluster)
+```
+__**K-Means performs well in this case. It clusters the observations correctly.**__
+
+#(d)
+
+```{r}
+set.seed(9)
+
+sim_kmeans2 <- kmeans(sim_data, 2)
+table(sim_data$true_labels, sim_kmeans2$cluster)
+```
+
+__**All the observations from the third cluster are absorbed into cluster 2.**__
+
+#(e)
+
+```{r}
+set.seed(9)
+
+sim_kmeans4 <- kmeans(sim_data, 4)
+table(sim_data$true_labels, sim_kmeans4$cluster)
+```
+__**K-Means with K = 4 doesn't perform as well as the above two.**__
+
+#(f)
+
+```{r}
+set.seed(9)
+
+km_out <- kmeans(sim_pca$x[,1:2], 3)
+table(sim_data$true_labels, km_out$cluster)
+```
+
+__**Using the first two principal components also does not seem to improve the results. There are many miclassified observations.**__
+
+#(g)
+
+```{r}
+set.seed(9)
+
+km_out_1 <- kmeans(scale(sim_data), 3)
+table(sim_data$true_labels, km_out_1$cluster)
+```
+__**Scaling the variables did not improve the results much.**__
+
+$~$
+$~$
+
+#Problem 11
+#(a)
+
+```{r}
+library(readr)
+genes <- read.csv("C:/Users/GP/Desktop/MEGHA/SemII/MA679 - Appl Stat Learning/Homework/MA679---Stat-Machine-Learning/Unsupervised_Learning_HW/Ch10Ex11.csv", header = FALSE)
+```
+
+
+#(b)
+
+```{r}
+#complete linkage
+hc_complete <- hclust(dist(1 - cor(genes)), method = "complete")
+plot(hc_complete)
+```
+
+```{r}
+#single linkage
+hc_single <- hclust(dist(1 - cor(genes)), method = "single")
+plot(hc_single)
+```
+
+```{r}
+#average linkage
+hc_average <- hclust(dist(1 - cor(genes)), method = "average")
+plot(hc_average)
+```
+
+__**All the three linkage methods give similar results.**__
+
+
+#(c)
+
+__**To determine which genes differ the most across the two groups, we can perform PCA.**__
+```{r}
+pca_genes <- prcomp(t(genes))
+head(order(abs(rowSums(pca_genes$rotation)), decreasing = TRUE))
+```
+
+__**The above are the genes that differ the most across the two groups.**__
+
+
+
+
+
+
+
+
+
+
